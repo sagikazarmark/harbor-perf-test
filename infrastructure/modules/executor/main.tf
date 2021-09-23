@@ -66,17 +66,12 @@ rm -rf /usr/local/go && tar -C /usr/local -xzf /tmp/go.tar.gz
 export PATH=$PATH:/usr/local/go/bin
 echo "export PATH=$PATH:/usr/local/go/bin" >> /home/ubuntu/.bashrc
 echo "export PATH=$PATH:/usr/local/go/bin" >> /root/.bashrc
+go version
 
 # Install k6
 wget https://github.com/heww/xk6-harbor/releases/download/${var.k6_version}/k6-${var.k6_version}-linux-amd64.tar.gz -O /tmp/k6.tar.gz
 tar -C /usr/local/bin -xzf /tmp/k6.tar.gz
 chmod +x /usr/local/bin/k6
-
-# Checkout the perf test repository
-cd /home/ubuntu
-git clone https://github.com/goharbor/perf.git
-chown -R ubuntu.ubuntu perf/
-cd -
 
 # Setup test environment
 echo 'export HARBOR_URL="${var.harbor_scheme}://${var.harbor_user}:${var.harbor_password}@${var.harbor_host}"' >> /home/ubuntu/.bashrc
@@ -88,5 +83,9 @@ echo 'export HARBOR_PASSWORD="${var.harbor_password}"' >> /home/ubuntu/.bashrc
 echo 'export K6_CSV_OUTPUT="true"' >> /home/ubuntu/.bashrc
 echo 'export K6_JSON_OUTPUT="true"' >> /home/ubuntu/.bashrc
 echo 'export HARBOR_REPORT="true"' >> /home/ubuntu/.bashrc
+
+# Checkout the perf test repository
+git clone https://github.com/goharbor/perf.git /home/ubuntu/perf
+chown -R ubuntu.ubuntu /home/ubuntu/perf
 EOT
 }

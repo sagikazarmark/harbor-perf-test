@@ -17,12 +17,16 @@ module "vpc" {
   name                 = local.name
   cidr                 = "10.0.0.0/16"
   azs                  = data.aws_availability_zones.available.names
-  private_subnets      = ["10.0.1.0/24", "10.0.2.0/24", "10.0.3.0/24", "10.0.4.0/24"]
-  public_subnets       = ["10.0.5.0/24", "10.0.6.0/24", "10.0.7.0/24", "10.0.8.0/24"]
-  database_subnets     = ["10.0.9.0/24", "10.0.10.0/24", "10.0.11.0/24", "10.0.12.0/24"]
+  private_subnets      = ["10.0.1.0/24", "10.0.2.0/24", "10.0.3.0/24"]
+  public_subnets       = ["10.0.4.0/24", "10.0.5.0/24", "10.0.6.0/24"]
+  database_subnets     = ["10.0.7.0/24", "10.0.8.0/24", "10.0.9.0/24"]
+  elasticache_subnets  = ["10.0.11.0/24", "10.0.12.0/24", "10.0.13.0/24"]
   enable_nat_gateway   = true
   single_nat_gateway   = true
   enable_dns_hostnames = true
+
+  create_database_internet_gateway_route = true
+  create_database_subnet_route_table     = true
 
   public_subnet_tags = {
     "kubernetes.io/cluster/${local.name}" = "shared"
@@ -43,7 +47,7 @@ module "eks" {
   cluster_version = var.kubernetes_version
 
   vpc_id  = module.vpc.vpc_id
-  subnets = [module.vpc.private_subnets[0], module.vpc.private_subnets[1], module.vpc.private_subnets[2]]
+  subnets = module.vpc.private_subnets
 
   # Auth configmap management causes trouble
   # https://github.com/terraform-aws-modules/terraform-aws-eks/issues/1536
@@ -51,14 +55,28 @@ module "eks" {
   # https://github.com/terraform-aws-modules/terraform-aws-eks/issues/1487
   manage_aws_auth = false
 
-  # Without managed auth configmap this option makes no sense
-  write_kubeconfig = false
+  kubeconfig_aws_authenticator_env_variables = var.eks_kubeconfig_aws_authenticator_env_variables
 
   node_groups = {
-    main = {
-      instance_type    = var.eks_node_instance_type
-      desired_capacity = var.eks_node_group_size
-      max_capacity     = var.eks_node_group_size
+    test = {
+      instance_types   = [var.eks_test_node_group_instance_type]
+      desired_capacity = var.eks_test_node_group_size
+      max_capacity     = var.eks_test_node_group_size
+      taints = [
+        {
+          key    = "role"
+          value  = "test"
+          effect = "NO_SCHEDULE"
+        }
+      ]
+      k8s_labels = {
+        role = "test"
+      }
+    },
+    infra = {
+      instance_types   = [var.eks_infra_node_group_instance_type]
+      desired_capacity = var.eks_infra_node_group_size
+      max_capacity     = var.eks_infra_node_group_size
     },
   }
 }
@@ -75,10 +93,6 @@ provider "kubernetes" {
   host                   = data.aws_eks_cluster.cluster.endpoint
   cluster_ca_certificate = base64decode(data.aws_eks_cluster.cluster.certificate_authority.0.data)
   token                  = data.aws_eks_cluster_auth.cluster.token
-
-  experiments {
-    manifest_resource = true
-  }
 }
 
 provider "helm" {
@@ -94,18 +108,6 @@ provider "k8s" {
   cluster_ca_certificate = base64decode(data.aws_eks_cluster.cluster.certificate_authority.0.data)
   token                  = data.aws_eks_cluster_auth.cluster.token
   load_config_file       = false
-}
-
-resource "local_file" "kubeconfig_admin" {
-  content = templatefile("${path.module}/templates/kubeconfig.tpl", {
-    kubeconfig_name     = "eks_${local.name}"
-    endpoint            = data.aws_eks_cluster.cluster.endpoint
-    cluster_auth_base64 = data.aws_eks_cluster.cluster.certificate_authority.0.data
-    token               = data.aws_eks_cluster_auth.cluster.token
-  })
-  filename             = "./kubeconfig_admin_${local.name}"
-  file_permission      = "0600"
-  directory_permission = "0755"
 }
 
 module "ingress" {
@@ -124,7 +126,8 @@ module "external_dns" {
   name   = local.name
   vpc_id = module.vpc.vpc_id
 
-  chart_version = var.external_dns_chart_version
+  chart_version  = var.external_dns_chart_version
+  parent_zone_id = var.parent_zone_id
 
   depends_on = [
     module.eks
@@ -165,13 +168,34 @@ module "harbor" {
   ]
 }
 
+module "database" {
+  source = "../database"
+
+  name              = local.name
+  vpc_id            = module.vpc.vpc_id
+  subnet_group_name = module.vpc.database_subnet_group_name
+  instance_type     = var.database_instance_type
+  harbor_namespace  = module.harbor.namespace
+}
+
+module "cache" {
+  source = "../cache"
+
+  name              = local.name
+  vpc_id            = module.vpc.vpc_id
+  subnet_group_name = module.vpc.elasticache_subnet_group_name
+  instance_type     = var.cache_instance_type
+  security_group_id = module.eks.cluster_primary_security_group_id
+  harbor_namespace  = module.harbor.namespace
+}
+
 module "executor" {
   source = "../executor"
 
   name = local.name
 
   vpc_id        = module.vpc.vpc_id
-  subnet_id     = module.vpc.public_subnets[3]
+  subnet_id     = module.vpc.public_subnets[0]
   instance_type = var.executor_instance_type
   key_name      = var.executor_key_name
 

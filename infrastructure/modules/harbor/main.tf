@@ -19,7 +19,7 @@ resource "kubernetes_namespace" "this" {
 resource "k8s_manifest" "cert" {
   namespace = local.namespace
 
-  content   = <<EOF
+  content = <<EOF
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:

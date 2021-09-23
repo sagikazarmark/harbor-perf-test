@@ -33,7 +33,7 @@ variable "go_version" {
 
 variable "k6_version" {
   type    = string
-  default = "837343e"
+  default = "456a01b"
 }
 
 variable "harbor_scheme" {

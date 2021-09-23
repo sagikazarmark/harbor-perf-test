@@ -31,5 +31,10 @@ terraform {
       source  = "hashicorp/local"
       version = "~> 2.1"
     }
+
+    postgresql = {
+      source  = "cyrilgdn/postgresql"
+      version = "~> 1.14"
+    }
   }
 }

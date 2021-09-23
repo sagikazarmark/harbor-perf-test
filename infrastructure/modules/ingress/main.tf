@@ -22,13 +22,5 @@ resource "helm_release" "this" {
 
   version = var.chart_version
 
-  set {
-    name  = "controller.ingressClassResource.enabled"
-    value = "true"
-  }
-
-  set {
-    name  = "controller.ingressClassResource.default"
-    value = "true"
-  }
+  values = [file("${path.module}/values.yaml")]
 }

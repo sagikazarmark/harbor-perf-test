@@ -1,8 +1,3 @@
-variable "region" {
-  type        = string
-  description = "AWS region to launch the infrastructure in"
-}
-
 provider "aws" {
   region = var.region
 }
@@ -10,13 +5,13 @@ provider "aws" {
 module "testbed" {
   source = "../../modules/testbed"
 
-  name = "filesystem"
+  name = "s3"
 
-  executor_key_name = "mark"
-}
+  parent_zone_id = var.parent_zone_id
 
-output "executor_ip" {
-  value = module.testbed.executor_ip
+  executor_key_name = var.executor_key_name
+
+  eks_kubeconfig_aws_authenticator_env_variables = var.eks_kubeconfig_aws_authenticator_env_variables
 }
 
 provider "kubernetes" {
@@ -34,11 +29,18 @@ provider "k8s" {
 
 resource "k8s_manifest" "harbor" {
   content = templatefile("${path.module}/templates/harborcluster.tpl", {
-    harbor_version = "2.3.0"
-    admin_secret   = module.testbed.harbor_admin_secret
-    core_domain    = module.testbed.harbor_domain
-    base_domain    = module.testbed.domain
-    cert_secret    = module.testbed.harbor_cert_secret
+    harbor_version    = "2.3.2"
+    admin_secret      = module.testbed.harbor_admin_secret
+    core_domain       = module.testbed.harbor_domain
+    base_domain       = module.testbed.domain
+    cert_secret       = module.testbed.harbor_cert_secret
+    database_host     = module.testbed.harbor_database_host
+    database_port     = module.testbed.harbor_database_port
+    database_username = module.testbed.harbor_database_username
+    database_secret   = module.testbed.harbor_database_secret
+    cache_host        = module.testbed.harbor_cache_host
+    cache_port        = module.testbed.harbor_cache_port
+    cache_secret      = module.testbed.harbor_cache_secret
   })
   namespace = "harbor"
 

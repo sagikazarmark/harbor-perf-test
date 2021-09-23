@@ -10,6 +10,9 @@ spec:
   expose:
     core:
       ingress:
+        annotations:
+          ingress.kubernetes.io/proxy-body-size: "0"
+          nginx.ingress.kubernetes.io/proxy-body-size: "0"
         host: ${core_domain}
       tls:
         certificateRef: ${cert_secret}
@@ -20,11 +23,28 @@ spec:
         certificateRef: ${cert_secret}
   internalTLS:
     enabled: true
-  portal: {}
+  portal:
+    nodeSelector:
+      role: test
+
+    tolerations:
+      - key: "role"
+        operator: "Equal"
+        value: "test"
+        effect: "NoSchedule"
   registry:
-    replicas: 1
+    replicas: 3
     metrics:
       enabled: true
+
+    nodeSelector:
+      role: test
+
+    tolerations:
+      - key: "role"
+        operator: "Equal"
+        value: "test"
+        effect: "NoSchedule"
   core:
     replicas: 3
     tokenIssuer:
@@ -34,36 +54,82 @@ spec:
       enabled: false
     log:
       level: debug
-  chartmuseum: {}
-  exporter: {}
+
+    nodeSelector:
+      role: test
+
+    tolerations:
+      - key: "role"
+        operator: "Equal"
+        value: "test"
+        effect: "NoSchedule"
+  chartmuseum:
+    nodeSelector:
+      role: test
+
+    tolerations:
+      - key: "role"
+        operator: "Equal"
+        value: "test"
+        effect: "NoSchedule"
+  exporter:
+    nodeSelector:
+      role: test
+
+    tolerations:
+      - key: "role"
+        operator: "Equal"
+        value: "test"
+        effect: "NoSchedule"
   trivy:
     skipUpdate: false
     storage: {}
+
+    nodeSelector:
+      role: test
+
+    tolerations:
+      - key: "role"
+        operator: "Equal"
+        value: "test"
+        effect: "NoSchedule"
   notary:
     migrationEnabled: true
+
+    server:
+      nodeSelector:
+        role: test
+
+      tolerations:
+        - key: "role"
+          operator: "Equal"
+          value: "test"
+          effect: "NoSchedule"
+
+    signer:
+      nodeSelector:
+        role: test
+
+      tolerations:
+        - key: "role"
+          operator: "Equal"
+          value: "test"
+          effect: "NoSchedule"
   database:
-    kind: "Zlando/PostgreSQL"
+    kind: PostgreSQL
     spec:
-      zlandoPostgreSql:
-        operatorVersion: "1.5.0"
-        storage: 20Gi
-        replicas: 1
-        resources:
-          limits:
-            cpu: 5000m
-            memory: 2500Mi
-          requests:
-            cpu: 1000m
-            memory: 2500Mi
+      postgresql:
+        username: ${database_username}
+        passwordRef: ${database_secret}
+        hosts:
+          - host: ${database_host}
+            port: ${database_port}
   cache:
-    kind: RedisFailover
+    kind: Redis
     spec:
-      redisFailover:
-        operatorVersion: "1.0"
-        sentinel:
-          replicas: 1
-        server:
-          replicas: 1
+      redis:
+        host: ${cache_host}
+        port: ${cache_port}
   storage:
     kind: "FileSystem"
     spec:

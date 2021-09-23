@@ -41,11 +41,11 @@ resource "helm_release" "this" {
 
   set {
     name  = "postgres-operator.enabled"
-    value = "true"
+    value = tostring(var.enable_postgres_operator)
   }
 
   set {
     name  = "redisoperator.enabled"
-    value = "true"
+    value = tostring(var.enable_redis_operator)
   }
 }

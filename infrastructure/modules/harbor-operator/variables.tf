@@ -15,3 +15,13 @@ variable "chart_version" {
   default     = "v1.1.0"
   description = "Helm chart version"
 }
+
+variable "enable_postgres_operator" {
+  type    = bool
+  default = true
+}
+
+variable "enable_redis_operator" {
+  type    = bool
+  default = true
+}
